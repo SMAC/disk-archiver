@@ -1,0 +1,14 @@
+# OS X Generated s**t
+.DS_Store
+
+# Python compiled files
+*.pyc
+
+# Generated documentation
+# The documentation is going to be built on another system and pushed to a
+# secondary branch. The documentation is also included in package
+# distributions.
+docs/_build/*  # Sphinx
+docs/_api/*    # Epydoc
+docs/_thrift/* # Thrift
+smac/api/*
