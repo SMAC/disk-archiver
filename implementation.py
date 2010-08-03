@@ -92,4 +92,5 @@ class SimpleDiskArchiver(base.ModuleBase):
         except KeyError:
             log.warn("Upload with key {0} not found. Can't finalize".format(key))
             return
+    
 
