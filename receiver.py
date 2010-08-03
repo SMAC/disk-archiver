@@ -1,10 +1,8 @@
 from zope.interface import implements
-from twisted.internet import defer
+from twisted.internet import defer, threads
 from smac.python import log
-from smac.conf import settings
 from smac.api.archiver.ttypes import InvalidChecksum
 from smac.api.archiver import FileReceiver
-from smac.amqp.models import Address
 from smac.tasks import Task
 
 import hashlib
@@ -19,15 +17,11 @@ def sizeof_fmt(num):
         num /= 1024.0
 
 class FileReceiver(Task):
-    """
-    
-    """
-    
     implements(FileReceiver.Iface)
     
     bufsize = 2 ** 24 # 16 MB
     
-    def __init__(self, transfer_key, path, size, parent='', hashmethod=hashlib.sha512):
+    def __init__(self, transfer_key, path, size, parent='', hashmethod=hashlib.md5):
         super(FileReceiver, self).__init__(parent=parent)
         
         self.transfer_key = transfer_key
@@ -63,12 +57,21 @@ class FileReceiver(Task):
         # Wait for the transfer to complete
         yield self.deferred_completed
         
-        # Close transfer queues and remove bindings
-        # @todo: Cleanup
+        # @todo: Cleanup queues and make sure the tempfile is removed from the
+        #        system
         
         # Close the file and move it to the final destination
-        self.tempfile[0].close()
-        os.rename(self.tempfile[1], self.path)
+        fh, temppath = self.tempfile
+        
+        # Remove references to allow garbage collecting the file handler
+        del self.tempfile
+        
+        # Close the file handler
+        fh.close()
+        
+        # Move the file to the final destination in another thread to avoid to
+        # block the reactor if the move operation acts on different disks
+        yield threads.deferToThread(os.rename, temppath, self.path)
         
         self.duration = time.time() - self.start_time
         error = self.checksum.hexdigest() != checksum
